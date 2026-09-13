@@ -38,8 +38,9 @@ def click_text(sb: SB, text: str, timeout: int = 20) -> None:
       const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')];
       const node = nodes.find(el => {
         const style = window.getComputedStyle(el);
-        const label = (el.innerText || el.textContent || '').trim().toLowerCase();
-        return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden';
+        const rect = el.getBoundingClientRect();
+        const label = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+        return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && el.getAttribute('aria-disabled') !== 'true';
       });
       if (!node) return false;
       node.click();
@@ -150,8 +151,8 @@ def main() -> int:
             dismiss_optional(sb, "Maybe later")
             # Manage 是标签按钮，使用可见文本查找，避免 Radix 动态 id 变化。
             click_text(sb, "Manage", timeout=30)
-            sb.sleep(2)
-            click_text(sb, "Renew now")
+            # Manage 面板是异步渲染的，等待 Renew now 真正出现。
+            click_text(sb, "Renew now", timeout=30)
             sb.sleep(1)
             renewed = try_click_text(sb, "Discord Boosted renewal", timeout=8)
             if renewed:
