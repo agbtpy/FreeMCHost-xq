@@ -94,7 +94,8 @@ def telegram_send(token: str, chat_id: str, caption: str, image: Path) -> None:
 def main() -> int:
     email = required("EMAIL")
     password = required("PASSWORD")
-    # 服务器链接固定在脚本中，账号密码仍通过 GitHub Secrets 注入。
+    # 登录页与服务器续期页分开；服务器链接固定在脚本中。
+    login_url = "https://freemchost.com/login"
     server_url = "https://freemchost.com/app/servers/1ff6673f-e48e-46a6-a9f8-9813e31ccd86"
     tg_token = required("TG_BOT_TOKEN")
     tg_chat_id = required("TG_CHAT_ID")
@@ -106,13 +107,19 @@ def main() -> int:
     phase = "登录"
     try:
         with SB(headless=True, xvfb=True, uc=True, chromium_arg=" ".join(chrome_args)) as sb:
-            sb.open(server_url)
+            # 先打开独立登录网址，再跳转到服务器续期网址。
+            sb.open(login_url)
             sb.sleep(3)
-            if "/login" in sb.get_current_url():
-                sb.type('input[type="email"]', email)
-                sb.type('input[type="password"]', password)
-                sb.click('form button[type="submit"]')
-                sb.wait_for_url_contains("/app", timeout=30)
+            sb.type('input[type="email"]', email)
+            sb.type('input[type="password"]', password)
+            sb.click('form button[type="submit"]')
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                if "/login" not in sb.get_current_url() and "/app" in sb.get_current_url():
+                    break
+                sb.sleep(1)
+            else:
+                raise RuntimeError("登录失败：登录后未进入管理页面")
 
             if "/login" in sb.get_current_url():
                 raise RuntimeError("登录失败：仍停留在登录页面")
