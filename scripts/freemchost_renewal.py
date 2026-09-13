@@ -79,6 +79,33 @@ def dismiss_optional(sb: SB, text: str) -> None:
         pass
 
 
+def selected_tab(sb: SB) -> str:
+    """Return the text of the currently selected tab, for verification."""
+    script = """
+    (() => {
+      const tab = document.querySelector('[role="tab"][aria-selected="true"]');
+      return tab ? (tab.innerText || tab.textContent || '').replace(/\\s+/g, ' ').trim() : '';
+    })()
+    """
+    try:
+        return str(sb.execute_script(script) or "")
+    except Exception:
+        return ""
+
+
+def click_tab(sb: SB, name: str, timeout: int = 30) -> None:
+    """Click a tab and verify it actually became the selected tab."""
+    click_text(sb, name, timeout=timeout)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if name.lower() in selected_tab(sb).lower():
+            return
+        sb.sleep(0.5)
+    raise RuntimeError(
+        f"点击了 {name} 但标签未激活（当前激活标签：'{selected_tab(sb) or '无'}'）"
+    )
+
+
 def try_click_text(sb: SB, text: str, timeout: int = 8) -> bool:
     """Click text if it is available; return False when it is not clickable."""
     try:
@@ -166,20 +193,19 @@ def main() -> int:
             sb.sleep(3)
             dismiss_optional(sb, "Reject all")
             dismiss_optional(sb, "Maybe later")
-            # Manage 是标签按钮，使用可见文本查找，避免 Radix 动态 id 变化。
-            click_text(sb, "Manage", timeout=30)
-            # Manage 面板是异步渲染的，等待 Renew now 真正出现。
+            # Manage 是标签按钮：点击后校验标签是否真正激活，避免停在 Console 却误报 Renew now 找不到。
             try:
+                click_tab(sb, "Manage", timeout=30)
                 click_text(sb, "Renew now", timeout=30)
             except RuntimeError as click_exc:
-                # 找不到目标按钮时，当场截图并回传页面文字，便于定位真实状态。
+                # 任一步失败：当场截图并回传"当前激活标签 + 页面文字"，直接看清 Manage 到底点没点上。
                 sb.save_screenshot(str(SCREENSHOT))
                 snippet = sanitize(visible_text(sb), email, server_url, password)
                 snippet = re.sub(r"\s+", " ", snippet).strip()[:1200]
                 telegram_send(
                     tg_token,
                     tg_chat_id,
-                    f"🔎 FreeMCHost 诊断：{click_exc}\n当前页面文字片段：\n{snippet}",
+                    f"🔎 FreeMCHost 诊断：{click_exc}\n当前激活标签：'{selected_tab(sb) or '无'}'\n页面文字片段：\n{snippet}",
                     SCREENSHOT,
                 )
                 raise
