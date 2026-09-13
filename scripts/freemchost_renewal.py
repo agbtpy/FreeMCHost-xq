@@ -29,18 +29,35 @@ def required(name: str) -> str:
     return value
 
 
+def visible_text(sb: SB) -> str:
+    """Return the page's rendered text, for failure diagnostics."""
+    try:
+        return str(sb.execute_script("return document.body.innerText;"))
+    except Exception:
+        try:
+            text = re.sub(r"<[^>]+>", " ", sb.get_page_source())
+            return re.sub(r"\s+", " ", text)
+        except Exception:
+            return ""
+
+
+def sanitize(text: str, *secrets: str) -> str:
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "[已隐藏]")
+    return text
+
+
 def click_text(sb: SB, text: str, timeout: int = 20) -> None:
     """Click a visible button/link/tab by its rendered text without XPath."""
     # SeleniumBase CDP evaluate() 执行的是表达式，必须用 IIFE 包住 return。
     script = """
     (() => {
       const wanted = %s.toLowerCase();
-      const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')];
+      const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"], [type="button"], [type="submit"]')];
       const node = nodes.find(el => {
-        const style = window.getComputedStyle(el);
-        const rect = el.getBoundingClientRect();
         const label = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-        return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && el.getAttribute('aria-disabled') !== 'true';
+        return label.includes(wanted) && el.getClientRects().length > 0;
       });
       if (!node) return false;
       node.click();
@@ -152,7 +169,20 @@ def main() -> int:
             # Manage 是标签按钮，使用可见文本查找，避免 Radix 动态 id 变化。
             click_text(sb, "Manage", timeout=30)
             # Manage 面板是异步渲染的，等待 Renew now 真正出现。
-            click_text(sb, "Renew now", timeout=30)
+            try:
+                click_text(sb, "Renew now", timeout=30)
+            except RuntimeError as click_exc:
+                # 找不到目标按钮时，当场截图并回传页面文字，便于定位真实状态。
+                sb.save_screenshot(str(SCREENSHOT))
+                snippet = sanitize(visible_text(sb), email, server_url, password)
+                snippet = re.sub(r"\s+", " ", snippet).strip()[:1200]
+                telegram_send(
+                    tg_token,
+                    tg_chat_id,
+                    f"🔎 FreeMCHost 诊断：{click_exc}\n当前页面文字片段：\n{snippet}",
+                    SCREENSHOT,
+                )
+                raise
             sb.sleep(1)
             renewed = try_click_text(sb, "Discord Boosted renewal", timeout=8)
             if renewed:
