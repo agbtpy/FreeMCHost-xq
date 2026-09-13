@@ -6,6 +6,7 @@ Required environment variables:
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -30,21 +31,24 @@ def required(name: str) -> str:
 
 def click_text(sb: SB, text: str, timeout: int = 20) -> None:
     """Click a visible button/link/tab by its rendered text without XPath."""
+    # SeleniumBase CDP evaluate() 执行的是表达式，必须用 IIFE 包住 return。
     script = """
-    const wanted = arguments[0].toLowerCase();
-    const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')];
-    const node = nodes.find(el => {
-      const style = window.getComputedStyle(el);
-      const label = (el.innerText || el.textContent || '').trim().toLowerCase();
-      return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden';
-    });
-    if (!node) return false;
-    node.click();
-    return true;
-    """
+    (() => {
+      const wanted = %s.toLowerCase();
+      const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')];
+      const node = nodes.find(el => {
+        const style = window.getComputedStyle(el);
+        const label = (el.innerText || el.textContent || '').trim().toLowerCase();
+        return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      if (!node) return false;
+      node.click();
+      return true;
+    })()
+    """ % json.dumps(text)
     deadline = time.time() + timeout
     while time.time() < deadline:
-        if sb.execute_script(script, text):
+        if sb.execute_script(script):
             return
         sb.sleep(0.5)
     raise RuntimeError(f"页面中未找到可点击的按钮：{text}")
