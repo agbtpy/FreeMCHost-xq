@@ -29,14 +29,25 @@ def required(name: str) -> str:
 
 
 def click_text(sb: SB, text: str, timeout: int = 20) -> None:
-    """Click the first visible button/link containing text."""
-    xpath = (
-        "//*[self::button or self::a or @role='button' or @role='tab']"
-        f"[contains(normalize-space(.), {text!r})]"
-    )
-    selector = f"xpath={xpath}"
-    sb.wait_for_element_visible(selector, timeout=timeout)
-    sb.click(selector)
+    """Click a visible button/link/tab by its rendered text without XPath."""
+    script = """
+    const wanted = arguments[0].toLowerCase();
+    const nodes = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')];
+    const node = nodes.find(el => {
+      const style = window.getComputedStyle(el);
+      const label = (el.innerText || el.textContent || '').trim().toLowerCase();
+      return label.includes(wanted) && style.display !== 'none' && style.visibility !== 'hidden';
+    });
+    if (!node) return false;
+    node.click();
+    return true;
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if sb.execute_script(script, text):
+            return
+        sb.sleep(0.5)
+    raise RuntimeError(f"页面中未找到可点击的按钮：{text}")
 
 
 def dismiss_optional(sb: SB, text: str) -> None:
@@ -133,7 +144,8 @@ def main() -> int:
             sb.sleep(3)
             dismiss_optional(sb, "Reject all")
             dismiss_optional(sb, "Maybe later")
-            click_text(sb, "Manage")
+            # Manage 是标签按钮，使用可见文本查找，避免 Radix 动态 id 变化。
+            click_text(sb, "Manage", timeout=30)
             sb.sleep(2)
             click_text(sb, "Renew now")
             sb.sleep(1)
