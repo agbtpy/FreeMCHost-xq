@@ -34,8 +34,9 @@ def click_text(sb: SB, text: str, timeout: int = 20) -> None:
         "//*[self::button or self::a or @role='button' or @role='tab']"
         f"[contains(normalize-space(.), {text!r})]"
     )
-    sb.wait_for_element_visible(xpath, timeout=timeout)
-    sb.click(xpath)
+    selector = f"xpath={xpath}"
+    sb.wait_for_element_visible(selector, timeout=timeout)
+    sb.click(selector)
 
 
 def dismiss_optional(sb: SB, text: str) -> None:
@@ -123,7 +124,7 @@ def main() -> int:
 
             if "/login" in sb.get_current_url():
                 raise RuntimeError("登录失败：仍停留在登录页面")
-            telegram_message(tg_token, tg_chat_id, "✅ FreeMCHost 登录成功")
+            # 登录成功不单独发送 Telegram，最终结果统一通知。
             phase = "续期"
 
             dismiss_optional(sb, "Reject all")
