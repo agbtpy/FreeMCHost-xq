@@ -1,6 +1,6 @@
 name: FreeMCHost 续期
 
-on:
+#on:
   schedule:
     - cron: '11 1 */2 * *' # 每两天运行一次；UTC 01:11，即北京时间 09:11
   workflow_dispatch:
