@@ -18,8 +18,6 @@
 | `TG_CHAT_ID` | 接收通知的 Telegram Chat ID |
 | `NODE_LINK` | sing-box 代理节点或订阅链接 |
 
-不要把邮箱、密码、Bot Token、Chat ID 或节点链接写入代码、工作流明文或提交记录。
-
 ## 代理说明
 
 工作流会通过以下远程脚本启动 sing-box：
