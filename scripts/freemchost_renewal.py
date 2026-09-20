@@ -242,7 +242,11 @@ def main() -> int:
             dismiss_optional(sb, "Reject all")
             dismiss_optional(sb, "Maybe later")
 
-            # === 点击 PLAN Billing 标签（文本包含 "Billing"） ===
+            # === 彻底清弹窗后再点标签 ===
+            dismiss_all_dialogs(sb)
+            sb.sleep(1)
+
+            # === 点击 PLAN Billing 标签 ===
             try:
                 click_tab(sb, "PLAN Billing", timeout=30)
                 click_text(sb, "Renew now", timeout=30)
