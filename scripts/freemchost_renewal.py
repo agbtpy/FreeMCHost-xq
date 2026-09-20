@@ -276,15 +276,33 @@ def main() -> int:
                 raise
             sb.sleep(1)
 
-            # === 点击 Discord Boosted renewal（免费续期 60 hours）===
-            # click_text 内部使用 JavaScript node.click()，等效于 force=True
-            renewed = try_click_text(sb, "Discord Boosted renewal", timeout=8)
-            if renewed:
+            # === 判断 Discord Boosted renewal 是否可点击 ===
+            # 如果按钮 disabled（不在续期窗口内），直接走"未到续期时间"分支
+            btn_check_script = """
+            (() => {
+                const btn = Array.from(document.querySelectorAll('button')).find(el =>
+                    (el.innerText || el.textContent || '').includes('Discord Boosted')
+                );
+                if (!btn) return 'NOT_FOUND';
+                return btn.disabled ? 'DISABLED' : 'ENABLED';
+            })()
+            """
+            try:
+                btn_state = str(sb.execute_script(btn_check_script) or "NOT_FOUND")
+            except Exception:
+                btn_state = "NOT_FOUND"
+
+            if btn_state == "ENABLED":
+                # 按钮可点，尝试续期
+                click_text(sb, "Discord Boosted renewal", timeout=8)
                 sb.sleep(3)
                 renewal_status = "已点击 Discord Boosted renewal"
             else:
-                # 该选项不可点击通常表示尚未进入可续期时间窗口，不视为失败
-                renewal_status = "当前未到续期时间，Discord Boosted renewal 不可点击"
+                # 按钮不存在或 disabled，未到续期时间
+                if btn_state == "DISABLED":
+                    renewal_status = "当前未到续期时间，Discord Boosted renewal 按钮灰色不可点击"
+                else:
+                    renewal_status = "当前未到续期时间，未找到 Discord Boosted renewal 按钮"
 
             # === 关闭所有弹窗，确保截图干净 ===
             dismiss_all_dialogs(sb)
