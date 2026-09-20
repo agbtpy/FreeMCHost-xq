@@ -113,36 +113,48 @@ def selected_tab(sb: SB) -> str:
 
 def click_tab(sb: SB, name: str, timeout: int = 30) -> None:
     """Click a tab and verify it actually became the selected tab.
-    先用 JavaScript click 尝试，不生效则用 Selenium 原生 click（发送真实鼠标事件）。
-    Radix UI 标签依赖真实鼠标事件，node.click() 可能不触发。
+    Radix UI 的标签需要完整 PointerEvent + MouseEvent 序列才能激活，
+    单纯的 node.click() 或 sb.click() 都可能无效。
+    此函数用 JavaScript 在目标元素上派发 pointerdown → pointerup → mousedown
+    → mouseup → click 完整事件链，附带正确坐标。
     """
-    # 尝试 1：JavaScript node.click()
-    try:
-        click_text(sb, name, timeout=timeout)
-    except Exception:
-        pass
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if name.lower() in selected_tab(sb).lower():
-            return
-        sb.sleep(0.5)
+    script = """
+    (() => {
+        const wanted = %s.toLowerCase();
+        const tab = Array.from(document.querySelectorAll('button[role="tab"]')).find(el => {
+            const label = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+            return label.includes(wanted);
+        });
+        if (!tab) return 'NOT_FOUND';
+        const rect = tab.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return 'INVISIBLE';
+        const x = rect.x + rect.width / 2;
+        const y = rect.y + rect.height / 2;
+        tab.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, cancelable: true, clientX: x, clientY: y, pointerType: 'mouse'}));
+        tab.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true, clientX: x, clientY: y}));
+        tab.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, cancelable: true, clientX: x, clientY: y, pointerType: 'mouse'}));
+        tab.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true, clientX: x, clientY: y}));
+        tab.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0}));
+        return 'OK';
+    })()
+    """ % json.dumps(name)
 
-    # 尝试 2：Selenium 原生 click（XPath 精确匹配 role=tab，发送真实鼠标事件）
-    try:
-        parts = name.strip().split()
-        xpath_parts = [f"contains(normalize-space(.), '{p}')" for p in parts]
-        xpath = f"//button[@role='tab' and {' and '.join(xpath_parts)}]"
-        sb.click(xpath, timeout=10)
-    except Exception:
-        pass
     deadline = time.time() + timeout
     while time.time() < deadline:
+        result = str(sb.execute_script(script) or "")
+        if result == "NOT_FOUND":
+            sb.sleep(0.5)
+            continue
+        if result == "INVISIBLE":
+            sb.sleep(1)
+            continue
+        sb.sleep(1)
         if name.lower() in selected_tab(sb).lower():
             return
         sb.sleep(0.5)
 
     raise RuntimeError(
-        f"点击了 {name} 但标签未激活（当前激活标签：'{selected_tab(sb) or '无'}'）"
+        f"无法激活标签 {name}（当前激活标签：'{selected_tab(sb) or '无'}'）"
     )
 
 
