@@ -46,8 +46,3 @@ bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
 - 续期失败
 - 任务完成及截图
 - 尚未到续期时间及倒计时
-
-通知和 GitHub Actions 日志不会输出完整服务器链接。截图只保存在 Runner 的临时目录，发送 Telegram 后自动删除，不上传 GitHub Actions Artifact。
-
-
-
