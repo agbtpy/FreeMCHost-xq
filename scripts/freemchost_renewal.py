@@ -222,7 +222,7 @@ def main() -> int:
 
             # === 点击 PLAN Billing 标签（文本包含 "Billing"） ===
             try:
-                click_tab(sb, "Billing", timeout=30)
+                click_tab(sb, "PLAN Billing", timeout=30)
                 click_text(sb, "Renew now", timeout=30)
             except RuntimeError as click_exc:
                 sb.save_screenshot(str(SCREENSHOT))
