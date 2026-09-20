@@ -213,7 +213,7 @@ def main() -> int:
     password = required("PASSWORD")
 
     login_url = "https://freemchost.com/login"
-    server_url = "https://freemchost.com/app/servers/1ff6673f-e48e-46a6-a9f8-9813e31ccd86"
+    app_url = "https://freemchost.com/app"
 
     tg_token = required("TG_BOT_TOKEN")
     tg_chat_id = required("TG_CHAT_ID")
@@ -244,12 +244,27 @@ def main() -> int:
             if "/login" in sb.get_current_url():
                 raise RuntimeError("登录失败：仍停留在登录页面")
 
-            # === 进入服务器页 ===
+            # === 进入 Dashboard，点击第一个服务器卡片 ===
             phase = "续期"
             dismiss_optional(sb, "Reject all")
             dismiss_optional(sb, "Maybe later")
 
-            sb.open(server_url)
+            sb.open(app_url)
+            sb.sleep(3)
+            dismiss_optional(sb, "Reject all")
+            dismiss_optional(sb, "Maybe later")
+
+            # 点击第一个服务器卡片（链接包含 /app/servers/）
+            click_script = """
+            (() => {
+                const link = document.querySelector('a[href*="/app/servers/"]');
+                if (!link) return false;
+                link.click();
+                return true;
+            })()
+            """
+            if not (sb.execute_script(click_script) or False):
+                raise RuntimeError("未找到服务器卡片")
             sb.sleep(3)
             dismiss_optional(sb, "Reject all")
             dismiss_optional(sb, "Maybe later")
@@ -264,7 +279,7 @@ def main() -> int:
                 click_text(sb, "Renew now", timeout=30)
             except RuntimeError as click_exc:
                 sb.save_screenshot(str(SCREENSHOT))
-                snippet = sanitize(visible_text(sb), email, server_url, password)
+                snippet = sanitize(visible_text(sb), email, password)
                 snippet = re.sub(r"\s+", " ", snippet).strip()[:1200]
                 telegram_send(
                     tg_token, tg_chat_id,
@@ -328,7 +343,7 @@ def main() -> int:
             return 0
 
     except Exception as exc:
-        safe_error = str(exc).replace(server_url, "[服务器链接已隐藏]")
+        safe_error = str(exc)
         error = f"❌ FreeMCHost {phase}失败：{safe_error}"
         try:
             telegram_message(tg_token, tg_chat_id, error)
