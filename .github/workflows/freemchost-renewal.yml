@@ -1,8 +1,9 @@
 name: FreeMCHost 续期
 
-#on:
+on:
   schedule:
-    - cron: '11 1 */2 * *' # 每两天运行一次；UTC 01:11，即北京时间 09:11
+    # 每两天运行一次；UTC 04:12 = 北京时间 12:12
+    - cron: '12 4 */2 * *'
   workflow_dispatch:
 
 jobs:
@@ -24,7 +25,9 @@ jobs:
       - name: 🛠️ 安装系统依赖和 Python 依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget curl
+          sudo apt-get install -y \
+            xvfb x11-utils xdotool scrot fonts-noto-cjk \
+            jq wget curl
           python -m pip install --upgrade pip
           python -m pip install 'seleniumbase>=4.25.0' 'requests>=2.31.0'
           seleniumbase install chromedriver
@@ -44,7 +47,8 @@ jobs:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           OUTPUT_DIR: /tmp/freemchost-screenshots
         run: |
-          xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' python3 scripts/freemchost_renewal.py
+          xvfb-run --auto-servernum --server-args='-screen 0 1280x720x24' \
+            python3 scripts/freemchost_renewal.py
 
       - name: 🧽 清理进程和临时文件
         if: always()
