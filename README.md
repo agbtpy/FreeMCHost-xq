@@ -16,15 +16,8 @@
 | `PASSWORD` | FreeMCHost 登录密码 |
 | `TG_BOT_TOKEN` | Telegram Bot Token |
 | `TG_CHAT_ID` | 接收通知的 Telegram Chat ID |
-| `NODE_LINK` | sing-box 代理节点或订阅链接 |
+| `NODE_LINK` |  代理节点 |
 
-## 代理说明
-
-工作流会通过以下远程脚本启动 sing-box：
-
-```bash
-bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
-```
 ## 未到续期时间时的行为
 
 如果 **Discord Boosted renewal** 暂时不可点击，脚本将其视为尚未到续期时间：
