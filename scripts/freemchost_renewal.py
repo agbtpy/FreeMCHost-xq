@@ -112,13 +112,35 @@ def selected_tab(sb: SB) -> str:
 
 
 def click_tab(sb: SB, name: str, timeout: int = 30) -> None:
-    """Click a tab and verify it actually became the selected tab."""
-    click_text(sb, name, timeout=timeout)
+    """Click a tab and verify it actually became the selected tab.
+    先用 JavaScript click 尝试，不生效则用 Selenium 原生 click（发送真实鼠标事件）。
+    Radix UI 标签依赖真实鼠标事件，node.click() 可能不触发。
+    """
+    # 尝试 1：JavaScript node.click()
+    try:
+        click_text(sb, name, timeout=timeout)
+    except Exception:
+        pass
     deadline = time.time() + timeout
     while time.time() < deadline:
         if name.lower() in selected_tab(sb).lower():
             return
         sb.sleep(0.5)
+
+    # 尝试 2：Selenium 原生 click（XPath 精确匹配 role=tab，发送真实鼠标事件）
+    try:
+        parts = name.strip().split()
+        xpath_parts = [f"contains(normalize-space(.), '{p}')" for p in parts]
+        xpath = f"//button[@role='tab' and {' and '.join(xpath_parts)}]"
+        sb.click(xpath, timeout=10)
+    except Exception:
+        pass
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if name.lower() in selected_tab(sb).lower():
+            return
+        sb.sleep(0.5)
+
     raise RuntimeError(
         f"点击了 {name} 但标签未激活（当前激活标签：'{selected_tab(sb) or '无'}'）"
     )
