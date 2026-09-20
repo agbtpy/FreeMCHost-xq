@@ -331,9 +331,17 @@ def main() -> int:
 
             sb.save_screenshot(str(SCREENSHOT))
 
+            # 从页面提取服务器名称
+            try:
+                server_name = str(sb.execute_script("""
+                    document.querySelector('h1, h2, h3')?.innerText || ''
+                """) or "未知服务器").strip()
+            except Exception:
+                server_name = "未知服务器"
+
             caption = (
                 "✅ FreeMCHost 任务完成\n"
-                "服务器: 已配置服务器（链接已隐藏）\n"
+                f"服务器: {server_name}\n"
                 f"状态: {renewal_status}\n"
                 f"到期倒计时: {countdown}"
             )
