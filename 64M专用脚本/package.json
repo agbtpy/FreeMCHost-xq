@@ -1,0 +1,12 @@
+{
+  "name": "sb-no-keepalive",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "preinstall": "node --max-old-space-size=16 index.js --prepare && exec sh start.sh",
+    "start": "node --max-old-space-size=16 index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
